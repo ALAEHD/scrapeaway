@@ -1,3 +1,4 @@
 Flask==2.2.5
 flask_mail==0.10.0
 selenium==4.21.0
+chromedriver-binary==127.0.6520.0
