@@ -61,28 +61,12 @@
             <div class="list-group">
                 {% for result in results %}
                     <div class="list-group-item result-item d-flex align-items-center">
-                        <img id="product-image-{{ loop.index }}" src="{{ url_for('static', filename='assets/img/myimg/default-image-logo.png') }}" alt="{{ result.title }}">
+                        <img id="product-image-{{ loop.index }}" src="{{ result.image_url }}" alt="{{ result.title }}">
                         <div class="url">
                             <a class="url" href="{{ result.url }}" target="_blank">{{ result.title }}</a>
                             <p>{{ result.price }} MAD</p>
                         </div>
                     </div>
-                    <script>
-                        var img = document.getElementById('product-image-{{ loop.index }}');
-                        var imgSrc = "{{ result.image_url }}";
-                        var xhr = new XMLHttpRequest();
-                        xhr.open('GET', imgSrc, true);
-                        xhr.onreadystatechange = function () {
-                            if (xhr.readyState === 4) {
-                                if (xhr.status === 200) {
-                                    img.src = imgSrc;
-                                } else {
-                                    img.src = "{{ url_for('static', filename='assets/img/myimg/default-image-logo.png') }}";
-                                }
-                            }
-                        };
-                        xhr.send();
-                    </script>
                 {% endfor %}
             </div>
             <a class="btn btn-primary search-again" href="/">Search Again</a>
