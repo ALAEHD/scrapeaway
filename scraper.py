@@ -37,7 +37,7 @@ def scrape_jumia(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 8:  # Stop after 8 products because 9th always not found
+        if index >= 10:  # Stop after 8 products because 9th always not found
             break
         try:
             title_element = product.find_element(By.CSS_SELECTOR, "a.core")
@@ -1008,7 +1008,7 @@ def scrape_micromagma(query):
                 search_box.send_keys(query)
                 search_box.send_keys(Keys.ENTER)
 
-            except Exception as e:
+            except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
                 print(f"An element was not found or timed out for product {index + 1}: {e}")
                 continue
 
