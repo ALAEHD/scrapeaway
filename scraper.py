@@ -961,12 +961,18 @@ def scrape_micromagma(query):
                 product = products[index]
 
                 # Extract product title
-                title_element = product.find_element(By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1qfapge")
+                title_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1qfapge"))
+                )
                 title = title_element.text.strip()
 
                 # Extract product price
                 try:
-                    price_element = product.find_element(By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1tp9glm")
+                    # Wait for the search page to load again
+                    price_element = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1tp9glm"))
+                    )
                     price_text = price_element.text.strip()
                     price = float(re.sub(r'[^\d.]', '', price_text))
                 except:
@@ -1002,7 +1008,7 @@ def scrape_micromagma(query):
                 search_box.send_keys(query)
                 search_box.send_keys(Keys.ENTER)
 
-            except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
+            except Exception as e:
                 print(f"An element was not found or timed out for product {index + 1}: {e}")
                 continue
 
