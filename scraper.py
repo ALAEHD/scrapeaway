@@ -6,6 +6,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import re
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
 
 def scrape_jumia(query):
     print("----------SCRAPING JUMIA----------")
@@ -21,7 +23,8 @@ def scrape_jumia(query):
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
     # Initialize the Chrome webdriver with options
-    driver = webdriver.Chrome(options=chrome_options) #options=chrome_options
+    # driver = webdriver.Chrome(options=chrome_options) #options=chrome_options
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
     driver.get("https://www.jumia.ma/")
 
