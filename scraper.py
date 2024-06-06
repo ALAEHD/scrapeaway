@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import re
+import time
 
 def scrape_jumia(query):
     print("----------SCRAPING JUMIA----------")
@@ -18,73 +19,83 @@ def scrape_jumia(query):
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("window-size=1920x1080")
     chrome_options.add_argument("start-maximized")
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    chrome_options.add_argument(
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
     # Initialize the Chrome webdriver with options
-    driver = webdriver.Chrome(options=chrome_options)  # options=chrome_options
-
+    driver = webdriver.Chrome(options=chrome_options)
     driver.get("https://www.jumia.ma/catalog/?q=" + query)
+
+    results = []
 
     try:
         # Wait for products to load
         products = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".prd._fb.col.c-prd"))
         )
-    except TimeoutException:
-        print("No products found.")
-        driver.quit()
-        return []
 
-    results = []
-    for index, product in enumerate(products):
-        if index >= 10:  # Stop after 8 products because 9th always not found
-            break
-        try:
-            title_element = product.find_element(By.CSS_SELECTOR, "a.core")
-            title = title_element.get_attribute("data-ga4-item_name")
-            url = title_element.get_attribute("href")
+        # Scroll the page to load more products
+        last_height = driver.execute_script("return document.body.scrollHeight")
+        while len(products) < 20:  # Adjust the number of products to scrape
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(5)  # Adjust the sleep time if necessary
+            new_height = driver.execute_script("return document.body.scrollHeight")
+            if new_height == last_height:
+                break
+            last_height = new_height
+            products = driver.find_elements(By.CSS_SELECTOR, ".prd._fb.col.c-prd")
 
-            # Check if the product is out of stock
+        for index, product in enumerate(products[:20]):  # Limit to 20 products
             try:
-                out_of_stock_element = product.find_element(By.CLASS_NAME, "product-card__badge--outOfStock")
-                if out_of_stock_element:
-                    print(f"Product {index + 1} is out of stock.")
+                title_element = product.find_element(By.CSS_SELECTOR, "a.core")
+                title = title_element.get_attribute("data-ga4-item_name")
+                url = title_element.get_attribute("href")
+
+                # Check if the product is out of stock
+                try:
+                    out_of_stock_element = product.find_element(By.CLASS_NAME, "product-card__badge--outOfStock")
+                    if out_of_stock_element:
+                        print(f"Product {index + 1} is out of stock.")
+                        continue
+                except NoSuchElementException:
+                    pass
+
+                # Wait for the price element to load
+                retry_count = 0
+                while retry_count < 3:
+                    try:
+                        price_element = WebDriverWait(product, 10).until(
+                            EC.visibility_of_element_located((By.CSS_SELECTOR, ".prc"))
+                        )
+                        price_text = price_element.text.strip()
+                        price_parts = price_text.split('-')
+                        price_text = price_parts[-1].strip()
+                        price = float(re.sub(r'[^\d.]', '', price_text))
+                        break
+                    except (NoSuchElementException, TimeoutException):
+                        retry_count += 1
+                        time.sleep(2 ** retry_count)  # Exponential backoff
+
+                if retry_count == 3:
+                    print(f"Price not found for product {index + 1}.")
                     continue
-            except NoSuchElementException:
-                # If the out-of-stock element is not found, continue as usual
-                pass
 
-            # Wait for the price element to load
-            try:
-                price_element = WebDriverWait(product, 10).until(
-                    EC.visibility_of_element_located((By.CSS_SELECTOR, ".prc"))
-                )
-                price_text = price_element.text.strip()
-                # Split the price text by hyphen and pick the second part
-                price_parts = price_text.split('-')
-                if len(price_parts) > 1:
-                    price_text = price_parts[1].strip()  # Get the second part and trim whitespace
-                else:
-                    price_text = price_parts[0].strip()  # If there's only one part, use it
-                price = float(re.sub(r'[^\d.]', '', price_text))
-            except (NoSuchElementException, TimeoutException):
-                # If price cannot be found, skip this product
-                print(f"Price not found for product {index + 1}.")
+                image_element = product.find_element(By.CSS_SELECTOR, "img.img")
+                image_url = image_element.get_attribute("data-src") if image_element else None
+
+                result = {"title": title, "url": url, "price": price, "image_url": image_url}
+                results.append(result)
+                print(result)
+
+            except NoSuchElementException as e:
+                print(f"An element was not found for product {index + 1}: {e}")
                 continue
 
-            # Scrape image URL
-            image_element = product.find_element(By.CSS_SELECTOR, "img.img")
-            image_url = image_element.get_attribute("data-src") if image_element else None
+    except TimeoutException:
+        print("No products found.")
+    finally:
+        driver.quit()
 
-            result = {"title": title, "url": url, "price": price, "image_url": image_url}
-            results.append(result)
-            print(result)
-
-        except NoSuchElementException as e:
-            print(f"An element was not found for product {index + 1}: {e}")
-            continue
-
-    driver.quit()
     return results
 
 
