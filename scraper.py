@@ -21,22 +21,12 @@ def scrape_jumia(query):
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
     # Initialize the Chrome webdriver with options
-    driver = webdriver.Chrome(options=chrome_options) #options=chrome_options
+    driver = webdriver.Chrome(options=chrome_options)  # options=chrome_options
 
-    driver.get("https://www.jumia.ma/")
-
-    try:
-        search_box = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "q"))
-        )
-        search_box.send_keys(query)
-        search_box.send_keys(Keys.RETURN)
-    except TimeoutException:
-        print("Search box not found.")
-        driver.quit()
-        return []
+    driver.get("https://www.jumia.ma/catalog/?q=" + query)
 
     try:
+        # Wait for products to load
         products = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".prd._fb.col.c-prd"))
         )
@@ -47,24 +37,29 @@ def scrape_jumia(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products because 9th always not found
             break
         try:
-            # Check if the product is out of stock
-            try:
-                out_of_stock_element = product.find_element(By.CSS_SELECTOR, ".bdg._oos._xs")
-                print(f"Product {index + 1} is out of stock.")
-                continue
-            except NoSuchElementException:
-                pass
-
             title_element = product.find_element(By.CSS_SELECTOR, "a.core")
-            title = title_element.get_attribute("data-ga4-item_name")  # I can either do it like this or have separate url_element
+            title = title_element.get_attribute("data-ga4-item_name")
             url = title_element.get_attribute("href")
 
-            price_element = product.find_element(By.CSS_SELECTOR, ".prc")
-            if price_element:
-                price_text = price_element.text
+            # Check if the product is out of stock
+            try:
+                out_of_stock_element = product.find_element(By.CLASS_NAME, "product-card__badge--outOfStock")
+                if out_of_stock_element:
+                    print(f"Product {index + 1} is out of stock.")
+                    continue
+            except NoSuchElementException:
+                # If the out-of-stock element is not found, continue as usual
+                pass
+
+            # Wait for the price element to load
+            try:
+                price_element = WebDriverWait(product, 10).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, ".prc"))
+                )
+                price_text = price_element.text.strip()
                 # Split the price text by hyphen and pick the second part
                 price_parts = price_text.split('-')
                 if len(price_parts) > 1:
@@ -72,9 +67,12 @@ def scrape_jumia(query):
                 else:
                     price_text = price_parts[0].strip()  # If there's only one part, use it
                 price = float(re.sub(r'[^\d.]', '', price_text))
-            else:
-                price = "N/A"
+            except (NoSuchElementException, TimeoutException):
+                # If price cannot be found, skip this product
+                print(f"Price not found for product {index + 1}.")
+                continue
 
+            # Scrape image URL
             image_element = product.find_element(By.CSS_SELECTOR, "img.img")
             image_url = image_element.get_attribute("data-src") if image_element else None
 
@@ -83,7 +81,7 @@ def scrape_jumia(query):
             print(result)
 
         except NoSuchElementException as e:
-            print(f"An element was not found: {e}")
+            print(f"An element was not found for product {index + 1}: {e}")
             continue
 
     driver.quit()
@@ -848,7 +846,7 @@ def scrape_biougnach(query):
 
     # Iterate over each product
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 10 products
             break
 
         try:
