@@ -292,8 +292,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configure Celery
-app.config['CELERY_BROKER_URL'] = os.environ.get('REDISCLOUD_URL', os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
-app.config['CELERY_RESULT_BACKEND'] = os.environ.get('REDISCLOUD_URL', os.environ.get('REDIS_URL', 'redis://localhost:6379/0'))
+app.config['CELERY_BROKER_URL'] = os.environ.get('REDISCLOUD_URL')
+app.config['CELERY_RESULT_BACKEND'] = os.environ.get('REDISCLOUD_URL')
 
 # Initialize Celery
 celery = Celery(__name__)
