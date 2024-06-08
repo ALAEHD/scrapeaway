@@ -61,7 +61,7 @@
             <div class="list-group">
                 {% for result in results %}
                     <div class="list-group-item result-item d-flex align-items-center">
-                        <img id="product-image-{{ loop.index }}" src="{{ result.image_url }}" alt="{{ result.title }}">
+                        <img id="product-image-{{ loop.index }}" src="{{ result.image_url }}" alt="{{ result.title }}" onerror="this.onerror=null;this.src='../static/assets/img/myimg/default-image-logo.png';">
                         <div class="url">
                             <a class="url" href="{{ result.url }}" target="_blank">{{ result.title }}</a>
                             <p>{{ result.price }} MAD</p>

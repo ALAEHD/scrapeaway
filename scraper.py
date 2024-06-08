@@ -6,8 +6,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import re
-import time
 
+
+from celery import Celery
+# Initialize Celery
+celery = Celery('scraper', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+
+
+
+@celery.task
 def scrape_jumia(query):
     print("----------SCRAPING JUMIA----------")
 
@@ -19,88 +26,78 @@ def scrape_jumia(query):
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("window-size=1920x1080")
     chrome_options.add_argument("start-maximized")
-    chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
     # Initialize the Chrome webdriver with options
-    driver = webdriver.Chrome(options=chrome_options)
-    driver.get("https://www.jumia.ma/catalog/?q=" + query)
+    driver = webdriver.Chrome(options=chrome_options)  # options=chrome_options
 
-    results = []
+    driver.get("https://www.jumia.ma/catalog/?q=" + query)
 
     try:
         # Wait for products to load
         products = WebDriverWait(driver, 10).until(
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".prd._fb.col.c-prd"))
         )
-
-        # Scroll the page to load more products
-        last_height = driver.execute_script("return document.body.scrollHeight")
-        while len(products) < 20:  # Adjust the number of products to scrape
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(5)  # Adjust the sleep time if necessary
-            new_height = driver.execute_script("return document.body.scrollHeight")
-            if new_height == last_height:
-                break
-            last_height = new_height
-            products = driver.find_elements(By.CSS_SELECTOR, ".prd._fb.col.c-prd")
-
-        for index, product in enumerate(products[:20]):  # Limit to 20 products
-            try:
-                title_element = product.find_element(By.CSS_SELECTOR, "a.core")
-                title = title_element.get_attribute("data-ga4-item_name")
-                url = title_element.get_attribute("href")
-
-                # Check if the product is out of stock
-                try:
-                    out_of_stock_element = product.find_element(By.CLASS_NAME, "product-card__badge--outOfStock")
-                    if out_of_stock_element:
-                        print(f"Product {index + 1} is out of stock.")
-                        continue
-                except NoSuchElementException:
-                    pass
-
-                # Wait for the price element to load
-                retry_count = 0
-                while retry_count < 3:
-                    try:
-                        price_element = WebDriverWait(product, 10).until(
-                            EC.visibility_of_element_located((By.CSS_SELECTOR, ".prc"))
-                        )
-                        price_text = price_element.text.strip()
-                        price_parts = price_text.split('-')
-                        price_text = price_parts[-1].strip()
-                        price = float(re.sub(r'[^\d.]', '', price_text))
-                        break
-                    except (NoSuchElementException, TimeoutException):
-                        retry_count += 1
-                        time.sleep(2 ** retry_count)  # Exponential backoff
-
-                if retry_count == 3:
-                    print(f"Price not found for product {index + 1}.")
-                    continue
-
-                image_element = product.find_element(By.CSS_SELECTOR, "img.img")
-                image_url = image_element.get_attribute("data-src") if image_element else None
-
-                result = {"title": title, "url": url, "price": price, "image_url": image_url}
-                results.append(result)
-                print(result)
-
-            except NoSuchElementException as e:
-                print(f"An element was not found for product {index + 1}: {e}")
-                continue
-
     except TimeoutException:
         print("No products found.")
-    finally:
         driver.quit()
+        return []
 
+    results = []
+    for index, product in enumerate(products):
+        if index >= 10:  # Stop after 10 products because 9th always not found
+            break
+        try:
+            title_element = product.find_element(By.CSS_SELECTOR, "a.core")
+            title = title_element.get_attribute("data-ga4-item_name")
+            url = title_element.get_attribute("href")
+
+            # Check if the product is out of stock
+            try:
+                out_of_stock_element = product.find_element(By.CLASS_NAME, "product-card__badge--outOfStock")
+                if out_of_stock_element:
+                    print(f"Product {index + 1} is out of stock.")
+                    continue
+            except NoSuchElementException:
+                # If the out-of-stock element is not found, continue as usual
+                pass
+
+            # Wait for the price element to load
+            try:
+                price_element = WebDriverWait(product, 10).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, ".prc"))
+                )
+                price_text = price_element.text.strip()
+                # Split the price text by hyphen and pick the second part
+                price_parts = price_text.split('-')
+                if len(price_parts) > 1:
+                    price_text = price_parts[1].strip()  # Get the second part and trim whitespace
+                else:
+                    price_text = price_parts[0].strip()  # If there's only one part, use it
+                price = float(re.sub(r'[^\d.]', '', price_text))
+            except (NoSuchElementException, TimeoutException):
+                # If price cannot be found, skip this product
+                print(f"Price not found for product {index + 1}.")
+                continue
+
+            # Scrape image URL
+            image_element = product.find_element(By.CSS_SELECTOR, "img.img")
+            image_url = image_element.get_attribute("data-src") if image_element else None
+
+            result = {"title": title, "url": url, "price": price, "image_url": image_url}
+            results.append(result)
+            print(result)
+
+        except NoSuchElementException as e:
+            print(f"An element was not found for product {index + 1}: {e}")
+            continue
+
+    driver.quit()
     return results
 
 
 
-
+@celery.task
 def scrape_electroplanet(query):
     print("----------SCRAPING ELECTROPLANET----------")
 
@@ -181,7 +178,7 @@ def scrape_electroplanet(query):
 
 
 
-
+@celery.task
 def scrape_virgin(query):
     print("----------SCRAPING VIRGIN----------")
 
@@ -320,7 +317,7 @@ def scrape_virgin(query):
 
 
 
-
+@celery.task
 def scrape_marjanemall(query):
     print("----------SCRAPING MARJANEMALL----------")
 
@@ -402,7 +399,7 @@ def scrape_marjanemall(query):
 
 
 
-
+@celery.task
 def scrape_aswakassalam(query):
     print("----------SCRAPING ASWAKASSALAM----------")
 
@@ -502,7 +499,7 @@ def scrape_aswakassalam(query):
 
 
 
-
+@celery.task
 def scrape_mediazone(query):
     print("----------SCRAPING MEDIAZONE----------")
 
@@ -587,7 +584,7 @@ def scrape_mediazone(query):
     return results
 
 
-
+@celery.task
 def scrape_bestmark(query):
     print("----------SCRAPING BESTMARK----------")
 
@@ -660,7 +657,7 @@ def scrape_bestmark(query):
 
 
 
-
+@celery.task
 def scrape_cosmoselectro(query):
     print("----------SCRAPING COSMOSELECTRO----------")
 
@@ -739,7 +736,7 @@ def scrape_cosmoselectro(query):
 
 
 
-
+@celery.task
 def scrape_iris(query):
     print("----------SCRAPING IRIS----------")
 
@@ -814,7 +811,7 @@ def scrape_iris(query):
 
 
 
-
+@celery.task
 def scrape_biougnach(query):
     print("----------SCRAPING BIOUGNACH----------")
 
@@ -857,7 +854,7 @@ def scrape_biougnach(query):
 
     # Iterate over each product
     for index, product in enumerate(products):
-        if index >= 8:  # Stop after 10 products
+        if index >= 10:  # Stop after 10 products
             break
 
         try:
@@ -918,7 +915,7 @@ def scrape_biougnach(query):
 
 
 
-
+@celery.task
 def scrape_micromagma(query):
     print("----------SCRAPING MICROMAGMA----------")
 
@@ -972,18 +969,12 @@ def scrape_micromagma(query):
                 product = products[index]
 
                 # Extract product title
-                title_element = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1qfapge"))
-                )
+                title_element = product.find_element(By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1qfapge")
                 title = title_element.text.strip()
 
                 # Extract product price
                 try:
-                    # Wait for the search page to load again
-                    price_element = WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1tp9glm"))
-                    )
+                    price_element = product.find_element(By.CSS_SELECTOR, "p.MuiTypography-root.MuiTypography-body1.css-1tp9glm")
                     price_text = price_element.text.strip()
                     price = float(re.sub(r'[^\d.]', '', price_text))
                 except:
@@ -1031,7 +1022,7 @@ def scrape_micromagma(query):
 
 
 
-
+@celery.task
 def scrape_uno(query):
     print("----------SCRAPING UNO----------")
 
@@ -1106,7 +1097,7 @@ def scrape_uno(query):
                 print("product 1 out of stock")
         else:
             # Find all product elements
-            products = driver.find_elements(By.CLASS_NAME, "product-item-info")
+            products = driver.find_elements(By.CSS_SELECTOR, "li.item.product.product-item")
 
             # Initialize an empty list to store product details
             results = []
@@ -1123,17 +1114,16 @@ def scrape_uno(query):
                     # Extract product URL
                     url = title_element.get_attribute("href")
 
-                    # Extract product price
                     try:
                         # Extract product price
                         price_element = product.find_element(By.CSS_SELECTOR, ".price")
                         price_text = price_element.text.strip()
-
                         # Adjust price text to remove decimal part and non-digit characters
                         price_text = re.search(r'(\d+,\d+)(?=,)', price_text).group(1)
                         price = float(price_text.replace(',', ''))
-                    except:
-                        print(f"Product {index + 1} is out of stock.")
+
+                    except NoSuchElementException:
+                        print(f"Product {index + 1}: Price element not found. Product may be out of stock.")
                         continue
 
                     # Extract product image URL
@@ -1163,7 +1153,7 @@ def scrape_uno(query):
 
 
 
-
+@celery.task
 def scrape_ikea(query):
   print("----------SCRAPING IKEA----------")
 
@@ -1265,7 +1255,7 @@ def scrape_ikea(query):
 
 
 
-
+@celery.task
 def scrape_kitea(query):
     print("----------SCRAPING KITEA----------")
 
@@ -1363,17 +1353,9 @@ def scrape_kitea(query):
 
                     url = title_element.get_attribute("href")
 
-                    # Try multiple selectors for the image element
-                    try:
-                        image_element = product.find_element(By.CSS_SELECTOR, ".product-image-photo")
-                    except NoSuchElementException:
-                        try:
-                            image_element = product.find_element(By.CSS_SELECTOR, "img")
-                        except NoSuchElementException:
-                            image_element = None
-
+                    image_element = product.find_element(By.CSS_SELECTOR, ".product-image-photo")
                     if image_element:
-                        image_url = image_element.get_attribute("src")
+                        image_url = image_element.get_attribute("data-src")
                     else:
                         image_url = None
 
@@ -1413,7 +1395,7 @@ def scrape_kitea(query):
 
 
 
-
+@celery.task
 def scrape_bricoma(query):
     print("----------SCRAPING BRICOMA----------")
 
