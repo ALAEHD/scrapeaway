@@ -7,9 +7,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import re
 
+import os
 from celery import Celery
 # Initialize Celery
-celery = Celery('scraper', broker='redis://default:oEjZ0wQcLbX5SbR4C2A6pfqpj57b7eas@redis-11521.c3.eu-west-1-1.ec2.redns.redis-cloud.com:11521', backend='redis://default:oEjZ0wQcLbX5SbR4C2A6pfqpj57b7eas@redis-11521.c3.eu-west-1-1.ec2.redns.redis-cloud.com:11521')
+celery = Celery('scraper', broker=os.environ.get('REDISCLOUD_URL'), backend=os.environ.get('REDISCLOUD_URL'))
 
 @celery.task
 def scrape_jumia(query):
