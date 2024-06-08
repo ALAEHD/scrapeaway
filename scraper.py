@@ -10,7 +10,7 @@ import re
 
 from celery import Celery
 # Initialize Celery
-celery = Celery('scraper', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+celery = Celery('scraper', broker='redis://default:oEjZ0wQcLbX5SbR4C2A6pfqpj57b7eas@redis-11521.c3.eu-west-1-1.ec2.redns.redis-cloud.com:11521', backend='redis://default:oEjZ0wQcLbX5SbR4C2A6pfqpj57b7eas@redis-11521.c3.eu-west-1-1.ec2.redns.redis-cloud.com:11521')
 
 
 
