@@ -43,7 +43,7 @@ def scrape_jumia(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products because 9th always not found
+        if index >= 8:  # Stop after 8 products because 9th always not found
             break
         try:
             title_element = product.find_element(By.CSS_SELECTOR, "a.core")
@@ -126,7 +126,7 @@ def scrape_electroplanet(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products
             break
         try:
             # Check if the product is out of stock
@@ -250,7 +250,7 @@ def scrape_virgin(query):
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "li.product")))
             products = driver.find_elements(By.CSS_SELECTOR, "li.product")
             for index, product in enumerate(products):                              #not tested yet
-                if index >= 10:  # Stop after 10 products
+                if index >= 8:  # Stop after 8 products
                     break
                 try:
                     # Out-of-stock check within the loop (optional)
@@ -346,7 +346,7 @@ def scrape_marjanemall(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products
             break
         try:
             # Extract title and URL
@@ -426,7 +426,7 @@ def scrape_aswakassalam(query):
                 EC.presence_of_all_elements_located((By.CSS_SELECTOR, "li.product")))
             results = []
             for index, product in enumerate(products):
-                if index >= 10:  # Stop after 10 products
+                if index >= 8:  # Stop after 8 products
                     break
                 try:
                     # Extract details for each product
@@ -528,7 +528,7 @@ def scrape_mediazone(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products
             break
         try:
             title_element = product.find_element(By.CLASS_NAME, "mkd-product-list-title").find_element(By.TAG_NAME, "a")
@@ -613,7 +613,7 @@ def scrape_bestmark(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products
             break
         try:
             title_element = product.find_element(By.CSS_SELECTOR, ".product-item-name a")
@@ -686,7 +686,7 @@ def scrape_cosmoselectro(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products
             break
         try:
             title_element = product.find_element(By.CSS_SELECTOR, ".ps-product__container .ps-product__content h4 a")
@@ -766,7 +766,7 @@ def scrape_iris(query):
 
     results = []
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products
             break
         try:
             # Check if the product is out of stock
@@ -852,7 +852,7 @@ def scrape_biougnach(query):
 
     # Iterate over each product
     for index, product in enumerate(products):
-        if index >= 10:  # Stop after 10 products
+        if index >= 8:  # Stop after 8 products
             break
 
         try:
@@ -956,7 +956,7 @@ def scrape_micromagma(query):
 
         # Iterate over each product (up to 10 products)
         for index, product in enumerate(products):
-            if index >= 10:  # Stop after 10 products
+            if index >= 8:  # Stop after 8 products
                 break
             try:
                 # Locate the product elements again
@@ -1102,7 +1102,7 @@ def scrape_uno(query):
 
             # Iterate over each product
             for index, product in enumerate(products):
-                if index >= 10:  # Stop after 10 products
+                if index >= 8:  # Stop after 8 products
                     break
                 try:
                     # Extract product title
@@ -1189,7 +1189,7 @@ def scrape_ikea(query):
     results = []
 
     # Iterate over each product
-    for product in products:
+    for product in products:             # add stop at 8 later
       try:
         # Extract product title
         title_element = product.find_element(By.XPATH, ".//span[@class='notranslate plp-price-module__product-name']")
@@ -1334,7 +1334,7 @@ def scrape_kitea(query):
             products = driver.find_elements(By.CLASS_NAME, "product-item-info")
             # Iterate over each product
             for index, product in enumerate(products):
-                if index >= 10:  # Stop after 10 products
+                if index >= 8:  # Stop after 8 products
                     break
                 try:
                     # Check if the product is out of stock
@@ -1432,7 +1432,7 @@ def scrape_bricoma(query):
 
         # Iterate over each product
         for index, product in enumerate(products):
-            if index >= 10:  # Stop after 10 products
+            if index >= 8:  # Stop after 8 products
                 break
             try:
                 # Extract product title
