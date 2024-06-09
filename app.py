@@ -452,7 +452,7 @@ def index():
         results = []
         for task in task_results:
             try:
-                results.extend(task.get(timeout=40))  # Adjust timeout as needed
+                results.extend(task.get())  # Adjust timeout as needed
             except Exception as e:
                 logger.error(f"Error getting result from task: {e}")
 
