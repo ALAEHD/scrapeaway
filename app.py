@@ -116,7 +116,7 @@ def send_email():
 
     msg = Message(subject='New Contact Form Submission',
                   sender=app.config['MAIL_USERNAME'],
-                  recipients=os.environ.get('MAIL_USERNAME'),
+                  recipients=[app.config['MAIL_USERNAME']],
                   body=f"Name: {name}\nEmail: {email}\nMessage: {message}")
 
     mail.send(msg)
